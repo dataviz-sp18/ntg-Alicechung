@@ -1,0 +1,229 @@
+---
+title: "DV HW4"
+author: "Alice Mee Seon Chung"
+date: "5/26/2018"
+output: #html_document
+  github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
+library(foreign)
+library(stringr)
+library(stm)
+library(stats)
+library(dplyr)
+library(wordcloud)
+library(ggplot2)
+library(tm)
+library(plyr)
+library(fiftystater)
+load(file = "alicedata.RData")
+```
+
+# Geospatial Visualization
+ - *Notes: Here, I included the codes in Rmd file to process the plot but I had technique issues in my local computer when knitting the codes using package `sf`, so I inserted a image file that I rendered from another computer.*
+
+The research question of this text analysis is that how presidential candidates particularly speak at the stage of delivering presidential election speeches within specific regions like rust-belt and swing states. I ran STM(Structural Topic Modeling) with 45 topics with presidential election speeches from 2008 to 2016.
+
+```{r, echo=FALSE, eval=FALSE, include=FALSE}
+library(sf)
+pro_state <- read.csv('ML_finalPJT/Data/pro_state_rust.csv')
+propo <- data.frame(state = tolower(rownames(pro_state)), pro_state)
+names(propo) <- c("state", "id", "proportion")
+map_pro <- merge(fifty_states, propo, by="id",all.x=TRUE)
+data("fifty_states")
+dd <- data.frame(abb = state.abb, id = tolower(state.name))
+cnames <- aggregate(cbind(long, lat) ~ id, data=fifty_states, 
+                    FUN=function(x)mean(range(x)))
+cnames <- left_join(cnames, dd, by = c ("id"))
+rust_ex <- c('illinois','pennsylvania', 'west virginia',
+             'ohio', 'indiana', 'michigan','illinois',
+             'iowa', 'wisconsin', 'missouri', 'new york')
+filter<- fifty_states[fifty_states$id %in% rust_ex,]
+
+sf_fifty <- sf::st_as_sf(fifty_states, coords = c("long", "lat")) %>% 
+  group_by(id, piece) %>% 
+  summarize(do_union = FALSE) %>%
+  st_cast("POLYGON") %>% 
+  ungroup()
+
+midwest <- sf_fifty %>%
+  filter(
+    id %in% rust_ex
+  ) %>%
+  summarise(id = "midwest")
+
+p<-ggplot(map_pro, aes(map_id =id)) +
+  theme_void()+
+  geom_map(data = map_pro, aes(fill = proportion), map = fifty_states) +
+  geom_sf(data = midwest, col = "red", alpha = 0, size = 2)+
+  expand_limits(x = fifty_states$long, y = fifty_states$lat) +
+  scale_fill_gradient(low="white", high="darkgreen", name="Proportion \n")+
+  theme(
+    plot.background = element_blank(),
+    panel.background = element_blank(),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank()) +
+  labs(x = "", y = "", 
+       title = "Trade Topic-Related Word Propotion in a Single Speech by States \nwith the US Presidential Election Speeches, 2008 - 2016",
+       subtitle = "Rustbelt Region in Red",
+       caption ='Note: The region colored in grey is the area that does not have record of election speech in 2008, 2012, and 2016 presidential elections.') +
+  theme(plot.title = element_text(size =20, face = "bold"), 
+        plot.subtitle = element_text(size =15, color = "red", face = "italic"),
+        text = element_text(family = "Times New Roman", size = 12),
+        plot.caption = element_text(size = 12)
+        )+
+coord_sf(datum = NA)
+p1<- p + fifty_states_inset_boxes() 
+   
+p1
+ggsave('plot.png', width = 14, height = 8, dpi=400)
+```
+
+![](plot.png)
+
+Firstly, I want to show the degree of trade-topic salience by states in presidential election speeches from 2008 to 2016 using U.S map. I already showed the meaning of main variable, the proportion of trade-related words mentioned in each speech document, and the reason to select the graphical form in the first assignment, so I will omit those part to avoid redundancy. From the feedback of the first assignment, I change the red line to be a single line around the entire rust-belt region, and I remove the labels of each state for clarity. I encountered several challenges when creating the graph and majority of the problems were related with the technical problem of installing packages and the conflict with system resources. Since the data from `fifty_state` package have longitude and latitude information but it is hard to make the dataframe that only contains the single line around the entire rust-belt region because it is hard to distinguish which data points I need to use, and the data points are more than 1,000 rows so I can not work manually to identify the points and I also need to use the proportion data to draw heatmap on the graph, so it is hard to overlap those graphs at the same time. So I used stackoverflow to get the answers(https://stackoverflow.com/questions/50499363/how-to-draw-the-outline-of-multiple-us-states-in-r/50514884#50514884) and from the answers, I first tried to use `regos:gUnion` function, but it is quite hard to apply to the dataset `fifty_states` from `fiftystater` since their types of object is different. Instead, I decided to use `sf` package and `geom_sf` function to draw the single line. I modified the codes from the answers to apply to my dataset and filter the rust-belt region and successfully draw the single line. Additionally, `geom_sf` function has conflict with `ggplot2` function so I need to add more options to draw desirable geospatial map. 
+
+
+## Topic Correlation Plot and Plot of Topic Constrast between two topics
+
+Next, using the results of STM with 45 topics, I draw correlation plot, topic contrast plot and wordclouds by four regions using two important regional distinctions on this research, rust-belt regions and swing states. Instead of drawing wordcloud by four regions, which I already did in the research paper, I decided to draw different kinds of wordcloud, comparison cloud and commonality cloud within regions. 
+
+I want to focus on the results of STM by four regions, so I plot the topic correlation plot and the plot of topical contrast between the “trade” topic and the farthest topic to see the differences between the topics within region. The topic correlation plot is somewhat like network style, so if the topics are related each other then they are connected by the lines. This plot is easy to detect the distances between the topics and the distinctiveness of topics. However, this plot is not an appropriate form to see what words actually topic has. So I decide to use the plot of topical contrast between two topics to see the actual contents of the topics and how they are different each other. Here, I am interested in the “trade” topic, so I choose to draw this topic and other topic by regions. From the results of STM by each region, trade-related topic is no.34 in Rust-Swing region and in Rust-NonSwing region, trade-relatedt topic is no.13. Trade-related topic is no.35 in NonRust-Swing region and  trade-relatedt topic is no.5 in NonRust-NonSwing region. 
+
+As you can see the graphs by each region, “trade” related topic indeed includes the words related with trade such as job, economi, work, and tax. You can also find that other accompanying words shows the characteristic of presidential election speeches by region. 
+
+### Rust/Swing
+
+```{r, echo=FALSE}
+rs<-topicCorr(rust_sw[[5]], method = c("simple", "huge"), cutoff = 0.01,
+              verbose = TRUE)
+rscor<-plot.topicCorr(rs,vertex.color="hotpink2",
+                      vertex.size=16,vertex.label.cex=0.7)
+rscont<-plot(rust_sw[[5]], type = "perspective", topics =c(14, 34),	
+         labeltype = "frex", n = 30)
+```
+
+### Rust/NonSwing
+```{r, echo=FALSE}
+rn<-topicCorr(rust_nosw[[5]], method = c("simple", "huge"), cutoff = 0.01,
+              verbose = TRUE)
+rncor<-plot.topicCorr(rn,vertex.color="orange2", vertex.size=16, vertex.label.cex=0.7)
+
+rncont<-plot(rust_nosw[[5]], type = "perspective", topics = c(17, 13),	
+     labeltype = "frex", n = 30)
+```
+
+### NonRust/Swing
+
+```{r, echo=FALSE}
+ns<-topicCorr(norust_sw[[5]], method = c("simple", "huge"), cutoff = 0.01,
+              verbose = TRUE)
+nscor<-plot.topicCorr(ns,vertex.color="limegreen",vertex.size=16,vertex.label.cex=0.7)
+
+nscont<-plot(norust_sw[[5]], type = "perspective", topics = c(41, 36),	
+     labeltype = "frex", n = 30)
+```
+
+### Rust/NonSwing
+
+```{r, echo=FALSE}
+nn<-topicCorr(norust_nosw[[5]], method = c("simple", "huge"), cutoff = 0.01,
+              verbose = TRUE)
+nscor<-plot.topicCorr(nn,vertex.color="lightslateblue",
+                      vertex.size=16,
+                      vertex.label.cex=0.7)
+nscont<-plot(norust_nosw[[5]], type = "perspective", topics = c(34, 5),	
+     labeltype = "frex", n = 30)
+```
+
+
+## Wordcloud by regions
+
+In addition to show the topic correlation and the topic contrast plot, I want to dive into the trade-related topics by each region and see what words appeared in the topics. As I divided the whole regions into four categories, I draw wordcloud of "trade" topic for every regions to show how and what words appeared in the presidential elections and how presidient candidates frame "trade" to earn the votes. Wordcloud is efficient to show the importance of each word in the data set because it uses size and color and the data point itself is a word, so it is convenient to interpret the data as well. I choose the color palette starts with yellow, green and blue to strengthen the importance of the words and set the background color as balck to show yellow colored words. Blue color means the words appear more and yellow means the words appear relatively less in the topics. I already implemented the codes earlier, so I didn't have any challenges this time to draw this graph but it was quite confused what color is approproate to deliever the information that I want to at first time for words and background. 
+
+### Rust/Swing
+```{r, echo=FALSE}
+pal2 <- brewer.pal(7,"YlGnBu")	
+par(bg="black") 
+cloud(rust_sw[[5]], topic = 34, scale = c(3,.5), max.words=300, 
+      colors=pal2, random.order=FALSE)
+```
+
+### Rust/NonSwing
+```{r, echo=FALSE}
+par(bg="black")
+#text(x=0.5, y=0.5, "Rust/NonSwing")
+cloud(rust_nosw[[5]], topic = 13, scale = c(3,.5), max.words=300, 
+          colors=pal2, random.order=FALSE)
+```
+
+### NonRust/Swing
+```{r, echo=FALSE}
+par(bg="black")
+#text(x=0.5, y=0.5, "NonRust/Swing")
+cloud(norust_sw[[5]], topic = 36, scale = c(3,.4), max.words=300, 
+          colors=pal2, random.order=FALSE)	
+```
+
+### NonRust/NonSwing
+```{r, echo=FALSE}
+par(bg="black")
+#text(x=0.5, y=0.5, "NonRust/NonSwing")
+cloud(norust_nosw[[5]], topic = 5, scale = c(3,.4), max.words=300, 
+          colors=pal2, random.order=FALSE)	
+```
+
+Overall, we can infer that "trade" is predominantly described with economic words such as 'job', 'economi', and 'tax'. Within rust-belt region, the trade rhetoric in swing states is more personalized, with emphasis on 'worker' instead of 'american'. This means when the region is swing state, then presidential candidates emphasize trade with the frame of special interest to earn the votes. On the other hand, trade is linked with national security-related words such as 'threat' or 'secur' in non-rust-belt region.Presidential candidates  talked about trade in relation to security affairs, for example, 'cuban embargo', 'trade sanctions', and 'immigration' when they deliver speech in non-rustbelt regions.
+
+
+## Comparison Wordcloud and Commonality Wordcloud
+
+Moreover, I extracted the words list by four regions and make them into one dataframe to draw comparison and commonality wordcloud to catch the differences and commonalities of word usage in trade-related topics of each region. As I used the analysis to compare topics within four regions, so it is more efficient to compare four wordcloud at the same time using comparison and commonality. Here I use use different color palette in the previous section because I think the distiction of four region is the most important part in the comparisosn wordcloud and for commonality, the color distinction can be made by the color selection that I choose. 
+
+```{r, echo=FALSE, include=FALSE}
+# Making DTM
+df_dtm <- function(obj){
+  dt<-as.data.frame(matrix(,ncol=2,nrow=length(obj[[1]])))
+  dt[,1]<-obj[[1]]
+  dt[,2]<-obj[[2]]
+  return(dt)
+}
+df_rs<-df_dtm(rs_vf)
+df_rn<-df_dtm(rn_vf)
+df_ns<-df_dtm(ns_vf)
+df_nn<-df_dtm(nn_vf)
+df_all<-join_all(list(df_rs,df_rn,df_ns, df_nn), by='V1')
+rownames(df_all) <- df_all$V1
+colnames(df_all) <- c("words","RustSwing","RustNonSwing","NonRustSwing","NonRustNonSwing")
+df_all_cloud<-df_all[-1]
+df_all_cloud[is.na(df_all_cloud)] <- 0
+
+# Reorder DTM
+df_all_cloud <- df_all_cloud %>%
+    select("RustNonSwing",
+           "RustSwing",
+           "NonRustSwing",
+           "NonRustNonSwing") %>% 
+    mutate_if(function(x) is.factor(x), 
+              funs(as.numeric(as.factor(.))-1))
+```
+
+### Comparison Wordcloud
+```{r, echo=FALSE}
+# comparison cloud	
+comparison.cloud(df_all_cloud, random.order=FALSE, scale = c(3,.4),
+                 colors = c("hotpink2","orange2","limegreen","lightslateblue"),
+                 title.size=1.5, max.words=300)
+```
+
+### Commonality Wordcloud
+```{r, echo=FALSE}
+# commonality cloud
+commonality.cloud(df_all_cloud, random.order=FALSE, scale=c(3,.4),
+                  colors = brewer.pal(4, "Set2"), max.words=300)
+```
+
+The difficuties that I encountered at this part were making a one dataframe that contains whole word-vocabulary and counts in each topics. Since STM does not provide the word-frequency pairwise object, I manually modify the code from their implemented function `cloud` in `stm` package to return vocabulary and probability of words in each topic, and then make four dataframes. However, each topic has its own vocabulary-probability pair, so again, I need to use `join_all` function to create one dataframe that I can input the parameter in the comparison wordcloud and commonality wordcloud function. 
