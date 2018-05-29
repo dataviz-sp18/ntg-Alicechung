@@ -46,6 +46,8 @@ filter the rust-belt region and successfully draw the single line.
 Additionally, `geom_sf` function has conflict with `ggplot2` function so
 I need to add more options to draw desirable geospatial map.
 
+# Text Visualization
+
 ## Topic Correlation Plot and Plot of Topic Constrast between two topics
 
 Next, using the results of STM with 45 topics, I draw correlation plot,

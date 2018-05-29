@@ -86,6 +86,7 @@ ggsave('plot.png', width = 14, height = 8, dpi=400)
 
 Firstly, I want to show the degree of trade-topic salience by states in presidential election speeches from 2008 to 2016 using U.S map. I already showed the meaning of main variable, the proportion of trade-related words mentioned in each speech document, and the reason to select the graphical form in the first assignment, so I will omit those part to avoid redundancy. From the feedback of the first assignment, I change the red line to be a single line around the entire rust-belt region, and I remove the labels of each state for clarity. I encountered several challenges when creating the graph and majority of the problems were related with the technical problem of installing packages and the conflict with system resources. Since the data from `fifty_state` package have longitude and latitude information but it is hard to make the dataframe that only contains the single line around the entire rust-belt region because it is hard to distinguish which data points I need to use, and the data points are more than 1,000 rows so I can not work manually to identify the points and I also need to use the proportion data to draw heatmap on the graph, so it is hard to overlap those graphs at the same time. So I used stackoverflow to get the answers(https://stackoverflow.com/questions/50499363/how-to-draw-the-outline-of-multiple-us-states-in-r/50514884#50514884) and from the answers, I first tried to use `regos:gUnion` function, but it is quite hard to apply to the dataset `fifty_states` from `fiftystater` since their types of object is different. Instead, I decided to use `sf` package and `geom_sf` function to draw the single line. I modified the codes from the answers to apply to my dataset and filter the rust-belt region and successfully draw the single line. Additionally, `geom_sf` function has conflict with `ggplot2` function so I need to add more options to draw desirable geospatial map. 
 
+# Text Visualization
 
 ## Topic Correlation Plot and Plot of Topic Constrast between two topics
 
@@ -215,7 +216,7 @@ df_all_cloud <- df_all_cloud %>%
 ```{r, echo=FALSE}
 # comparison cloud	
 comparison.cloud(df_all_cloud, random.order=FALSE, scale = c(3,.4),
-                 colors = c("hotpink2","orange2","limegreen","lightslateblue"),
+                 colors = c("orange2","hotpink2","limegreen","lightslateblue"),
                  title.size=1.5, max.words=300)
 ```
 
